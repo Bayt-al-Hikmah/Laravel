@@ -1,10 +1,6 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Submit Feedback</title>
-</head>
-<body>
+@extends('layouts.app')
+
+@section('content')
     <h1>We Value Your Feedback</h1>
 
     <form method="POST" action="{{ route('submit_feedback') }}">
@@ -37,5 +33,4 @@
         <br>
         <button type="submit">Submit</button>
     </form>
-</body>
-</html>
+@endsection

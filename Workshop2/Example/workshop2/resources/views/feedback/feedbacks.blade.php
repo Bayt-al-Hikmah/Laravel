@@ -1,21 +1,15 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Client Feedback</title>
-</head>
-<body>
+@extends('layouts.app')
+
+@section('content')
     <h1>Submitted Feedback</h1>
-    <ul>
         @forelse ($feedback_list as $item)
-            <li>
-                <strong>{{ $item['name'] }}</strong> ({{ $item['email'] }})<br>
-                {{ $item['message'] }}<br>
-            </li>
+            <div>
+                <div><strong>{{ $item['name'] }}</strong> ({{ $item['email'] }})</div>
+            <div>{{ $item['message'] }}</div>
+            </div>
             <hr>
         @empty
-            <li>No feedback has been submitted yet.</li>
+            <div>No feedback has been submitted yet.</div>
         @endforelse
-    </ul>
-</body>
-</html>
+    
+@endsection

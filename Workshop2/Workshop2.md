@@ -388,6 +388,25 @@ img {
     width: 150px;
     margin-top: 20px;
 }
+
+input, textarea {
+    width: 300px;
+    padding: 10px;
+    margin: 10px 0;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+textarea {
+    height: 100px;
+}
+button {
+    padding: 10px 20px;
+    background-color: #28a745;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}  
 ```
 This stylesheet will control the appearance of our webpage, setting a clean background, centering content, and styling the heading and image.
 ### Building the Blade View
@@ -477,13 +496,9 @@ After setting up our controller, it’s time to create the Blade views that will
 
 **`resources/views/feedback/form.blade.php`**
 ```html
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Submit Feedback</title>
-</head>
-<body>
+@extends('layouts.app')
+
+@section('content')
     <h1>We Value Your Feedback</h1>
 
     <form method="POST">
@@ -492,34 +507,26 @@ After setting up our controller, it’s time to create the Blade views that will
         <textarea name="message" rows="5" placeholder="Your Feedback" required></textarea><br><br>
         <button type="submit">Submit</button>
     </form>
-</body>
-</html>
+@endsection
 ```
 This view displays a simple HTML form. When the user submits, the data will be sent to the server using the `POST` method and handled by our `FeedbackController`.
 
 **`resources/views/feedback/feedbacks.blade.php`**
 ```html
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Client Feedback</title>
-</head>
-<body>
+@extends('layouts.app')
+
+@section('content')
     <h1>Submitted Feedback</h1>
-    <ul>
         @forelse ($feedback_list as $item)
-            <li>
-                <strong>{{ $item['name'] }}</strong> ({{ $item['email'] }})<br>
-                {{ $item['message'] }}<br>
-            </li>
+            <div>
+                <div><strong>{{ $item['name'] }}</strong> ({{ $item['email'] }})</div>
+            <div>{{ $item['message'] }}</div>
+            </div>
             <hr>
         @empty
-            <li>No feedback has been submitted yet.</li>
+            <div>No feedback has been submitted yet.</div>
         @endforelse
-    </ul>
-</body>
-</html>
+@endsection
 ```
 This template loops through the list of submitted feedback entries using Blade’s `@forelse` directive. If no feedback exists, the `@empty` section displays a default message.
 ### Creating the Controller Logic
@@ -611,18 +618,19 @@ To fix our form, we need to include a CSRF token. We do this by adding the **`@c
 
 Edit **`resources/views/feedback/form.blade.php`** like this:
 ```html
-<!DOCTYPE html>
-<html>
-<body>
+@extends('layouts.app')
+
+@section('content')
     <h1>We Value Your Feedback</h1>
 
     <form method="POST">
-        @csrf
-        <input type="text" name="name" placeholder="Your Name" required>
+         @csrf
+        <input type="text" name="name" placeholder="Your Name" required><br><br>
+        <input type="email" name="email" placeholder="Your Email" required><br><br>
+        <textarea name="message" rows="5" placeholder="Your Feedback" required></textarea><br><br>
         <button type="submit">Submit</button>
     </form>
-</body>
-</html>
+@endsection
 ```
 Now, when we submit the form, Laravel will verify the token and safely accept our feedback.
 ### Using a Form Request for Validation
@@ -732,13 +740,9 @@ Finally, let’s edit our form template.  we will  use Blade directives to displ
 
 **`resources/views/feedback/form.blade.php`**
 ```php
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Submit Feedback</title>
-</head>
-<body>
+@extends('layouts.app')
+
+@section('content')
     <h1>We Value Your Feedback</h1>
 
     <form method="POST" action="{{ route('submit_feedback') }}">
@@ -771,8 +775,7 @@ Finally, let’s edit our form template.  we will  use Blade directives to displ
         <br>
         <button type="submit">Submit</button>
     </form>
-</body>
-</html>
+@endsection
 ```
 This template now fully supports validation:
 - **`@csrf`** provides security.
