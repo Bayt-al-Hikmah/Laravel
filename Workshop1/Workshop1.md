@@ -176,7 +176,7 @@ Laravel’s project structure promotes clarity and convention over configuration
 Now that we understand the structure of a Laravel project, let’s build our first application. This section will guide you through setting up your environment and installing Laravel.
 ### Environment Configuration
 The PHP ecosystem uses Composer as its primary dependency manager. Composer can manage packages on a per-project basis (like `venv`), but the tool itself is typically installed once on your system.   
-W first need to install php from [PHP](https://www.php.net/) or by running the following command
+W first need to install php from [PHP](https://www.php.net/) or for windows we can do that by running the following command
 ```powershell
 # Download and install Chocolatey.
 powershell -c "irm https://community.chocolatey.org/install.ps1|iex"
