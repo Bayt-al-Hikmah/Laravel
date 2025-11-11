@@ -91,7 +91,6 @@ This course is for learners who:
 - Are interested in building scalable, maintainable, and secure web apps with PHP.
     
 
--
 
 ### 🏁 How to Use This Repository
 
