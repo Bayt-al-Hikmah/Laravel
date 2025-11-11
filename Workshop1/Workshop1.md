@@ -1,3 +1,6 @@
+## Objectives
+- Laravel’s Project Structure and Philosophy
+- Creating Our First Project
 ## Laravel’s Project Structure and Philosophy
 Now that we understand what Laravel is and why it’s so popular, let’s take a closer look at how Laravel organizes a project and the philosophy behind that structure.
 ### The MVC Pattern
