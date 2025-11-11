@@ -19,7 +19,6 @@ By the end of this course, you will understand how to:
 - Implement file uploads, custom middleware, providers, and unit tests.
     
 
----
 
 ### 📚 Prerequisites
 
@@ -32,7 +31,6 @@ Before starting this course, you should have a solid understanding of frontend d
 - **SQL and Databases** 👉 [SQL Course](https://github.com/Bayt-al-Hikmah/SQL)
     
 
----
 
 ### 🚀 What You Will Learn (Course Syllabus)
 
@@ -80,9 +78,7 @@ This Laravel course covers:
 - Understand middleware and Providers.
     
 - Implement Testing
-    
 
----
 
 ### 🎯 Who Is This Course For?
 
@@ -95,7 +91,7 @@ This course is for learners who:
 - Are interested in building scalable, maintainable, and secure web apps with PHP.
     
 
----
+-
 
 ### 🏁 How to Use This Repository
 
@@ -114,7 +110,7 @@ git clone https://github.com/Bayt-al-Hikmah/Laravel
 
 By the end, you will have built your own Laravel-based web application!
 
----
+
 
 **License**
 
