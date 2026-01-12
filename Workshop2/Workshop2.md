@@ -333,11 +333,10 @@ We include them in our `app.blade.php` base layout using the `@include` directiv
 The `@include()` directives tell Blade to load and render those smaller templates at the specified locations. 
 ## Managing and Serving Assets 
 Real web applications need styles, images, and sometimes videos to enhance the user experience. These files, which don’t change dynamically, are called assets or static files.   
-Laravel provides a simple and efficient way to manage and serve these assets (like CSS, JavaScript, and images) from a single, dedicated directory.
+Laravel provides a simple and efficient way to manage and serve these assets like CSS, JavaScript, and images.
 ### Setting Up Assets in the `public` Folder
-In Laravel, all static assets (CSS, JavaScript, images, etc.) are placed inside the `public` directory. This folder is the web server's "document root," meaning any file here is directly accessible via a URL.    
-Let’s set up a folder structure to organize our assets
-
+In Laravel, all static assets are placed inside the `public` directory. This folder is the web server's "document root" meaning any file here is directly accessible via a URL.    
+Let’s set up a folder structure to organize our assets   
 **Folder structure:**
 ```
 public/
@@ -351,9 +350,47 @@ public/
 ```
 - Files in `public/css/` will be accessible at URLs like `http://localhost:8000/css/style.css`.
 - Files in `public/images/` will be accessible at `http://localhost:8000/images/logo.png`.
-### Creating the Stylesheet
-Next, let’s create a CSS file that will define the styles for our page, we’ll name it `style.css` and place it inside the **`public/css/`** folder.
+### Creating the Controller Method
+Let's apply that by creating new controller and render view with css styles.
+```shell
+php artisan make:controller App4Controller
+```
+After that we create the `index` method.
 
+**`app/Http/Controllers/App4Controller.php`**
+```php
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+
+class App4Controller extends Controller
+{
+    public function index()
+    {
+        // This returns the view at resources/views/app4/index.blade.php
+        return view('app4.index');
+    }
+}
+```
+### Configuring the Route
+Now, to make our controller method accessible, we define a URL pattern for it in our `routes/web.php` file.  
+**`routes/web.php`**
+```php
+<?php
+
+use Illuminate\Support\Facades\Route;
+// Import all your controllers at the top
+// ...
+use App\Http\Controllers\App4Controller;
+
+/* ... */
+
+Route::get('/app4', [App4Controller::class, 'index']);
+```
+### Creating the Stylesheet
+With this, we can now create a CSS file that defines our page’s styles, we name it `style.css` and place it inside the `public/css/` folder.    
 **`public/css/style.css`**
 ```css
 body {
@@ -391,9 +428,8 @@ button {
     cursor: pointer;
 }  
 ```
-This stylesheet will control the appearance of our webpage, setting a clean background, centering content, and styling the heading and image.
 ### Building the Blade View
-Now that our assets are in the `public` folder, it’s time to use them in a Blade view. We’ll use Laravel's `asset()` helper function, which generates a full, correct URL to any file in the `public` directory.    
+Finally, We create Blade view. We’ll use Laravel's `asset()` helper function, to generate the URL for our assets.  
 **`resources/views/app4/index.blade.php`**
 ```php
 <!DOCTYPE html>
@@ -412,112 +448,32 @@ Now that our assets are in the `public` folder, it’s time to use them in a Bla
 </body>
 </html>
 ```
-In this template, we use the **`{{ asset(...) }}`** function to reference our CSS file and image.
-- This helper function generates the correct path to the file. For example, `{{ asset('css/style.css') }}` will be rendered as: `http://127.0.0.1:8000/css/style.css`
-- This ensures our links always work, even if our application is in a subdirectory on a production server.
-### Creating the Controller Method
-Now, let's connect everything. We need a controller method to render the `index.blade.php` view.
-
-First, create the controller with Artisan:
-```
-php artisan make:controller App4Controller
-```
-After that edit the new file to add an `index` method.
-
-**`app/Http/Controllers/App4Controller.php`**
-```php
-<?php
-
-namespace App\Http\Controllers;
-
-use Illuminate\Http\Request;
-
-class App4Controller extends Controller
-{
-    public function index()
-    {
-        // This returns the view at resources/views/app4/index.blade.php
-        return view('app4.index');
-    }
-}
-```
-### Configuring the Route
-Finally, to make our controller method accessible, we need to define a URL pattern for it in our `routes/web.php` file.
-
-**`routes/web.php`**
-```php
-<?php
-
-use Illuminate\Support\Facades\Route;
-// Import all your controllers at the top
-// ...
-use App\Http\Controllers\App4Controller;
-
-/* ... */
-
-Route::get('/app4', [App4Controller::class, 'index']);
-```
-Here, we’ve mapped the `/app4` URL directly to the `index` method of our new `App4Controller`.   
-Now, when we run `php artisan serve` and visit `http://127.0.0.1:8000/app4`, Laravel will execute the `index` method, render our Blade view, and our browser will correctly load the CSS and image from the `public` folder.
-
+The `{{ asset(...) }}` generates the correct path to the assets files. For example, `{{ asset('css/style.css') }}` will be rendered as: `http://127.0.0.1:8000/css/style.css`
 ## Handling User Input with Forms
 So far, our Laravel apps have focused on displaying data to users rendering Blade views, managing assets, and serving dynamic content. However, real-world web applications also need to receive data from users, process it, and often save it or use it to produce a result.
 
 The most common way to collect user input is through HTML forms. Laravel provides robust support for handling forms, including seamless request handling, CSRF protection, and powerful validation classes.
-### Create a Feedback "Feature"
-Let’s create a new feature that allows users to submit their feedback. for that we need to create new Controller and a set of Routes and Views.
-
-First, create the controller using Artisan:
+### Create a Feedback Controller
+Let’s create a new controller to handle form submissions.
 ```shell
 php artisan make:controller FeedbackController
 ```
-This creates a new file at `app/Http/Controllers/FeedbackController.php`. 
-### Creating The Templates
-After setting up our controller, it’s time to create the Blade views that will handle user interaction and data display. We’ll need two views, which we'll place in a new `resources/views/feedback/` directory.
-1. One for the feedback form.
-2. Another for displaying submitted feedback.
-
-**`resources/views/feedback/form.blade.php`**
-```html
-@extends('layouts.app')
-
-@section('content')
-    <h1>We Value Your Feedback</h1>
-
-    <form method="POST">
-        <input type="text" name="name" placeholder="Your Name" required><br><br>
-        <input type="email" name="email" placeholder="Your Email" required><br><br>
-        <textarea name="message" rows="5" placeholder="Your Feedback" required></textarea><br><br>
-        <button type="submit">Submit</button>
-    </form>
-@endsection
-```
-This view displays a simple HTML form. When the user submits, the data will be sent to the server using the `POST` method and handled by our `FeedbackController`.
-
-**`resources/views/feedback/feedbacks.blade.php`**
-```html
-@extends('layouts.app')
-
-@section('content')
-    <h1>Submitted Feedback</h1>
-        @forelse ($feedback_list as $item)
-            <div>
-                <div><strong>{{ $item['name'] }}</strong> ({{ $item['email'] }})</div>
-            <div>{{ $item['message'] }}</div>
-            </div>
-            <hr>
-        @empty
-            <div>No feedback has been submitted yet.</div>
-        @endforelse
-@endsection
-```
-This template loops through the list of submitted feedback entries using Blade’s `@forelse` directive. If no feedback exists, the `@empty` section displays a default message.
 ### Creating the Controller Logic
-Now let’s define the logic in our controller. It will perform two main tasks:
+Our controller will perform two main tasks:
 1. Display the feedback form (`GET` request).
-2. Handle the form submission (`POST` request) and display all feedback.
+2. Handle the form submission (`POST` request).
 
-Because PHP processes requests and then "forgets" everything, we need to set the Session to store the feedbacks.
+For that we will create two methods inside our controller class:
+`submitFeedback(Request $request)`: This method handles the feedback form submission.
+- First, we checks if the request method is `POST` using ``$request->isMethod('POST')``.
+- Then, we retrieves the values submitted by the user using `$request->input('name')`, `$request->input('email')`, and `$request->input('message')`.
+- After that,we get the existing `feedbacks` array from the session (or uses an empty array if none exists yet), and add to it the new feedback entry. Then we store our updated feedbacks array into the session using `$request->session()->put()`.
+- Finally, we redirects the user to the route that displays the feedback list.
+- If the request is not `POST`, we simply loads the feedback form view.
+
+
+`feedbackList(Request $request)`: More simpler it will retrieves all saved feedback from the session and sends them to the `feedback.feedbacks` view.   
+We used Session to store the feedbacks, Because PHP processes requests and then "forgets" everything, without session we would lose all the data.
 
 **`app/Http/Controllers/FeedbackController.php`**
 ```php
@@ -551,20 +507,8 @@ class FeedbackController extends Controller
     }
 }
 ```
-Here we created two methods one to handel the form submission and the other one to display the the feedbacks
-#### `submitFeedback(Request $request)`
-This method handles the feedback form submission.
-- First, it checks if the request method is `POST` using ``$request->isMethod('POST')``.
-- Then it retrieves the values submitted by the user using `$request->input('name')`, `$request->input('email')`, and `$request->input('message')`.
-- It gets the existing `feedbacks` array from the session (or uses an empty array if none exists yet).
-- The new feedback entry is added to the array.
-- The updated feedback list is stored back into the session using `$request->session()->put()`.
-- Finally, it redirects the user to the route that displays the feedback list.
-- If the request is not `POST`, it simply loads the feedback form view.
-#### `feedbackList(Request $request)`
-This method retrieves all saved feedback entries from the session and sends them to the `feedback.feedbacks` view to display them to the user.
 ### Setting the Routes
-Finally, we need to configure the URL patterns in our `routes/web.php` file.
+After finishing the controller logic we configure the URL patterns in our `routes/web.php` file.
 
 **`routes/web.php`**
 ```php
@@ -584,12 +528,52 @@ Route::post('/feedback', [FeedbackController::class, 'submitFeedback']);
 Route::get('/feedback/list', [FeedbackController::class, 'feedbackList'])
      ->name('feedbacks');
 ```
-- We point both `GET` and `POST` requests for `/feedback` to the same `submitFeedback` method, which then checks the request type internally.
-- We add a named route `feedbacks` for the list page, which our controller uses for the redirect.
+For the ``/feedback`` endpoint, we handle both ``GET`` and ``POST`` requests. The ``submitFeedback`` method internally determines the request type and executes the corresponding logic.
 
+The `->name('submit_feedback')` and ``->name('feedbacks')``  method allows us to create reference for the routes, we can now redirect to them only by using the name.
+
+### Creating The Templates
+Finally, we create the Blade views. We’ll need two views, which we'll place in a new `resources/views/feedback/` directory.
+1. One for the feedback form.
+2. Another for displaying submitted feedback.
+
+We start with `form.blade.php` view which displays a simple HTML form. When the user submits, the data will be sent to the server using the `POST` method and handled by our `FeedbackController`.   
+**`resources/views/feedback/form.blade.php`**
+```html
+@extends('layouts.app')
+
+@section('content')
+    <h1>We Value Your Feedback</h1>
+
+    <form method="POST">
+        <input type="text" name="name" placeholder="Your Name" required><br><br>
+        <input type="email" name="email" placeholder="Your Email" required><br><br>
+        <textarea name="message" rows="5" placeholder="Your Feedback" required></textarea><br><br>
+        <button type="submit">Submit</button>
+    </form>
+@endsection
+```
+Our second view is `feedbacks.blade.php`, Inside it we loop through the list of submitted feedbacks using Blade’s `@forelse` directive. If no feedback exists, the `@empty` section displays a default message.  
+**`resources/views/feedback/feedbacks.blade.php`**
+```html
+@extends('layouts.app')
+
+@section('content')
+    <h1>Submitted Feedback</h1>
+        @forelse ($feedback_list as $item)
+            <div>
+                <div><strong>{{ $item['name'] }}</strong> ({{ $item['email'] }})</div>
+            <div>{{ $item['message'] }}</div>
+            </div>
+            <hr>
+        @empty
+            <div>No feedback has been submitted yet.</div>
+        @endforelse
+@endsection
+```
 Now when we visit:
-- `http://127.0.0.1:8000/feedback` we will see the feedback form.
-- `http://127.0.0.1:8000/feedback/list` we will see all submitted feedback.
+- `http://127.0.0.1:8000/feedback`: we will see the feedback form.
+- `http://127.0.0.1:8000/feedback/list`: we will see all submitted feedback.
 
 If we try to submit our form right now, our application will fail with a "419 Page Expired" error, this happens because Laravel, by default, enables CSRF protection for all POST requests. 
 ### What Is CSRF?
@@ -597,7 +581,7 @@ CSRF (Cross-Site Request Forgery) is a type of attack where a malicious website 
 
 Laravel includes built-in CSRF protection to prevent this by requiring a unique token to be sent with every `POST`, `PUT`, `PATCH`, or `DELETE` request. If the token is missing or invalid, Laravel rejects the request with a 419 error.
 ### Adding the CSRF Token
-To fix our form, we need to include a CSRF token. We do this by adding the **`@csrf`** Blade directive inside the `<form>` tag.
+To fix our form, we need to include a CSRF token. We do this by adding the `@csrf` Blade directive inside the `<form>` tag.
 
 Edit **`resources/views/feedback/form.blade.php`** like this:
 ```html
@@ -617,38 +601,34 @@ Edit **`resources/views/feedback/form.blade.php`** like this:
 ```
 Now, when we submit the form, Laravel will verify the token and safely accept our feedback.
 ### Using a Form Request for Validation
-Our app works, but it lacks validation and will accept empty or invalid inputs if we remove the `required` attribute from the HTML.
-
-To solve this, Laravel provides a powerful, structured way to handle forms: "Form Request" classes.
-
+Our app works, but it lacks validation and will accept empty or invalid inputs if we remove the `required` attribute from the HTML.   
+To solve this, Laravel provides a powerful, structured way to handle forms: "Form Request" classes.  
 Form Requests help us to:
 - Automatically validate user input.
 - Authorize if a user is even allowed to make the request.
 - Re-render the form automatically with error messages if validation fails.
 - Cleanly separate validation logic from your controller.
 ### Creating a Form Request
-We’ll begin by creating a new Form Request class using Artisan.
+We begin by creating a new Form Request class using Artisan.
 ```shell
 php artisan make:request StoreFeedbackRequest
 ```
-This creates a new file at **`app/Http/Requests/StoreFeedbackRequest.php`**.
+This creates a new file at `app/Http/Requests/StoreFeedbackRequest.php`, we can see it have two methods:    
+The first method, `authorize()`, checks whether the user is allowed to submit the request. We change it to return `true` because we haven’t implemented an authentication system yet we will do that in the next workshop.  
+
+The second method, `rules()`, defines the validation rules that the submitted form data must follow. It returns an associative array where each key represents an input field name, and each value is the validation rule for that field. For example, we can set the `name` field to be required, string, and cannot exceed 100 characters, we do that by setting the value to `required|string|max:100`
 ```php
 <?php
-
 namespace App\Http\Requests;
-
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreFeedbackRequest extends FormRequest
 {
-
-    public function authorize(): bool
-    {
+    public function authorize(): bool{
         return true;
     }
 
-    public function rules(): array
-    {
+    public function rules(): array{
         return [
             'name' => 'required|string|max:100',
             'email' => 'required|email',
@@ -657,36 +637,27 @@ class StoreFeedbackRequest extends FormRequest
     }
 }
 ```
-This class extends the `FormRequest` class and contains two important methods.   
-The first method, `authorize()`, checks whether the user is allowed to submit the request. We currently return `true` because we haven’t implemented an authentication system yet  we will do that in the next workshop.
-
-The second method, `rules()`, defines the validation rules that the submitted form data must follow. It returns an associative array where each key represents an input field name, and each value is the validation rule for that field. For example, the `name` field is required, must be a string, and cannot exceed 100 characters.
 ### Updating the Controller Logic
-Now let’s update our `FeedbackController` to use this new Form Request. This also lets us clean up our logic by splitting the GET and POST handling into two separate methods.
-
+Now let’s update our `FeedbackController`, we split the GET and POST handling into two separate methods, and apply the new Form Request.    
+We create new ``showForm`` method which return the view. 
+Also we create `storeFeedback` method, it use our custom `StoreFeedbackRequest` class. first type-hint `StoreFeedbackRequest` instead of using the default `Request`, this will make Laravel runs the validation rules before the method executes. If the form data doesn't meet the validation rules, Laravel immediately redirects the user back to the form with error messages and the previously entered input. If the validation is successful, the controller continues and we retrieve the validated data using `$request->validated()`. Then we store that clean data in the session and redirect the user to the feedback list page.  
 **`app/Http/Controllers/FeedbackController.php`**
 ```php
 <?php
-
 namespace App\Http\Controllers;
-
 use Illuminate\Http\Request;
 use App\Http\Requests\StoreFeedbackRequest; 
 
-class FeedbackController extends Controller
-{
+class FeedbackController extends Controller{
 
-    public function showForm()
-    {
+    public function showForm(){
         return view('feedback.form');
     }
 
-    
-    public function storeFeedback(StoreFeedbackRequest $request)
-    {
+    public function storeFeedback(StoreFeedbackRequest $request){
     
         $validatedData = $request->validated();
-        
+
         $feedbacks = $request->session()->get('feedbacks', []);
         $feedbacks[] = $validatedData;
         $request->session()->put('feedbacks', $feedbacks);
@@ -694,14 +665,12 @@ class FeedbackController extends Controller
         return redirect()->route('feedbacks');
     }
 
-    public function feedbackList(Request $request)
-    {
+    public function feedbackList(Request $request){
         $feedbacks = $request->session()->get('feedbacks', []);
         return view('feedback.feedbacks', ['feedback_list' => $feedbacks]);
     }
 }
 ```
-We splite our form method into two methods , ``showForm`` method will just return the view, the `storeFeedback` method to use our custom `StoreFeedbackRequest` class. By type-hinting `StoreFeedbackRequest` instead of the default `Request`, Laravel automatically runs the validation rules before the method executes. If the form data doesn't meet the validation rules, Laravel immediately redirects the user back to the form with error messages and the previously entered input we don't need to manually check anything. If the validation is successful, the controller continues and we retrieve the validated data using `$request->validated()`. We then store that clean data in the session and redirect the user to the feedback list page.
 ### Updating the Routes
 Since we split our `submitFeedback` method into `showForm` and `storeFeedback`, we must update `routes/web.php`:
 
@@ -717,10 +686,8 @@ Route::post('/feedback', [FeedbackController::class, 'storeFeedback']);
 Route::get('/feedback/list', [FeedbackController::class, 'feedbackList'])
      ->name('feedbacks');
 ```
-
 ### Updating the Template 
-Finally, let’s edit our form template.  we will  use Blade directives to display errors and old input if form didn't pass validation.
-
+Finally, let’s edit our form template.  we will  use Blade directives to display errors and old input if form didn't pass validation.  
 **`resources/views/feedback/form.blade.php`**
 ```php
 @extends('layouts.app')
@@ -760,7 +727,7 @@ Finally, let’s edit our form template.  we will  use Blade directives to displ
     </form>
 @endsection
 ```
-This template now fully supports validation:
+The template now supports validation:
 - **`@csrf`** provides security.
 - **`old('name')`** is a helper that gets the previous input value if validation failed.
 - **`@error('name') ... @endrelease`** is a block that only renders if an error for the `name` field exists.
