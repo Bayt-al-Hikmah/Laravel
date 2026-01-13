@@ -1,14 +1,11 @@
 ## Objectives
-- Working with Databases and **Eloquent** Models
+- Working with Databases and Eloquent Models
 - Authentication and Session Management
 - Working with **Artisan Tinker**
 - Managing the Admin Panel 
 
 ## Databases and Eloquent Models
-In our previous sessions, we built apps that displayed dynamic content. For example, in our `feedback` app, we accepted user input and stored it in the session.
-
-This approach has a serious limitation: data stored in a session is volatile and temporary. As soon as the user's session expires or is cleared, all that information is lost.
-
+In our previous workshop, we used session to store data, this approach has a serious limitation: data stored in a session is volatile and temporary. As soon as the user's session expires or is cleared, all that information is lost.  
 To build real, reliable web applications, we need a way to store data permanently. This is where databases come in.
 ### Database
 A database is a specialized, structured system for storing, managing, and retrieving information efficiently. Instead of vanishing when the user's session ends, a database saves our data permanently on disk, ensuring it's still there the next time our application starts.
@@ -21,20 +18,19 @@ Databases are essential because they:
 ### Types of Databases
 Databases aren’t one-size-fits-all. They come in different types, depending on how they organize and manage data. The two main categories you’ll encounter are:
 #### Relational Databases (SQL)
-These are the most common type of database. They store data in tables made up of rows and columns, much like organized spreadsheets that can be linked together. Relational databases use a specialized language called SQL (Structured Query Language) to create, read, update, and delete data.
-
+These are the most common type of database. They store data in tables made up of rows and columns, much like organized spreadsheets that can be linked together. Relational databases use a specialized language called SQL (Structured Query Language) to create, read, update, and delete data.  
 They’re ideal for applications where data relationships and structure are important.
-- **Examples:** SQLite, PostgreSQL, MySQL, SQL Server.
+- Examples: SQLite, PostgreSQL, MySQL, SQL Server.
 #### Non-Relational Databases (NoSQL)
 These databases are more flexible and store data in various formats such as documents (like JSON), key-value pairs, wide-column stores, or graphs. They’re often used for large-scale systems or unstructured data.
-- **Examples:** MongoDB, Redis, Cassandra
+- Examples: MongoDB, Redis, Cassandra
 
-For most web applications and especially for Laravel projects we use a relational database. Laravel is designed around the structured, table-based model, and its most powerful features are built to work seamlessly with it.
+For most web applications and especially for Laravel projects we use a relational database..
 ### Relational Databases Structure
 A relational database stores data in tables. Each table represents a specific entity type (e.g., a `Customers` table or an `Orders` table). Each row represents a single record, and each column defines a property or field (e.g., `name`, `email`, `order_date`).
+### DataBase Keys 
 #### Primary Keys
-To keep data organized, every table includes a primary key. A primary key is a special column (usually `id`) that uniquely identifies each record in a table.
-
+A primary key is a special column (usually `id`) that uniquely identifies each record in a table.
 - It prevents duplicate entries.    
 - It allows the database to quickly find records.
 
@@ -46,22 +42,42 @@ To keep data organized, every table includes a primary key. A primary key is a s
 | 2                    | Bob Johnson | bob@example.com   |
 
 Here:
-- Each row is one unique customer.
-- The `id` column is the **primary key**.
-### Foreign Keys and Relationships
-Relational databases are powerful because they can define relationships between tables. This is done through foreign keys.
-
-A foreign key is a column in one table that refers to the primary key of another table. This creates a connection between records.
+- Each row represent unique customer.
+- The `id` column is the primary key.
+#### Foreign Keys and Relationships
+Relational databases are powerful because they can define relationships between tables linking related data without duplicating it. This is done through foreign keys.      
+A foreign key is a column in one table that refers to the primary key of another table. This creates a connection between records and ensures consistency for example, preventing the deletion of a customer who still has existing orders.  
 ### Common Types of Relationships
-- One-to-One: Each record in Table A is linked to exactly one record in Table B.
-    - **Example:** A `User` table and a `UserProfile` table.
-- One-to-Many: A single record in one table can be linked to multiple records in another. This is the most common type.
-    - **Example:** One `Customer` can have many `Orders`.    
-- Many-to-Many: Multiple records in Table A can be linked to multiple records in Table B. This requires a third "junction" table to link them.
-    - **Example:** One `Book` can have many `Authors`, and one `Author` can have many `Books`.
-### Connecting Apps to Databases
-Now that we understand what databases are, let’s talk about how our Laravel application can communicate with one.
+#### One-to-One   
+Each record in Table A is linked to exactly one record in Table B, and vice versa, this is useful when splitting related data into separate tables.    
+Example: A `Users` table and a `UserProfiles` table, where each profile corresponds to exactly one user via a foreign key referencing the user’s `id`.    
+#### One-to-Many 
+A single record in one table can be linked to multiple records in another, but each of those records refers back to only one parent, this is the most common type of relationship  for example, one customer can place many orders.    
+Example: Orders Table
 
+| id (Primary Key)  | order_date | total_amount  | customer_id (Foreign Key) |
+| ----------------- | ---------- | ------------- | ------------------------- |
+| 101               | 2025-10-25 | 45.99         | 1                         |
+| 102               | 2025-10-26 | 29.50         | 1                         |
+| 103               | 2025-10-27 | 100.00        | 2                         |
+
+- The `customer_id` column is a foreign key referencing the `id` in the `Customers` table.
+- This forms a one-to-many relationship: Customer 1 has two orders, while Customer 2 has one.
+
+#### Many-to-Many 
+In this relationship, multiple records in Table A can be linked to multiple records in Table B, to manage this, a third table often called a junction or association table is used to store the connections.    
+Example: In a library system, one book can have multiple authors, and one author can write multiple books.    
+A `BookAuthors` table would contain pairs of foreign keys linking books and authors:
+
+| book_id (FK) | author_id (FK) |
+| ------------ | -------------- |
+| 10           | 3              |
+| 10           | 5              |
+| 12           | 3              |
+
+This structure keeps the data organized and avoids duplication while preserving relationships.
+### Connecting Apps to Databases
+Now that we understand what databases are, let’s see how our Laravel application can communicate with one.  
 In PHP, we can connect to a database using the built-in PDO (PHP Data Objects) extension. PDO provides a consistent way to talk to different databases (like `pdo_sqlite`, `pdo_mysql`, `pdo_pgsql`).
 
 Once connected, we could write SQL queries directly inside our PHP code:
@@ -76,47 +92,60 @@ $pdo->exec("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT)
 $statement = $pdo->prepare("INSERT INTO users (name) VALUES (?)");
 $statement->execute(['Alice']);
 ```
-This works, but there’s a big drawback:
-
-We’re mixing raw SQL queries directly with PHP logic. This makes our code hard to maintain, debug, and scale. Even worse, if we decide to switch databases (say, from SQLite to PostgreSQL), we might need to rewrite our queries, since SQL syntax can vary slightly.
-
-This approach doesn’t align with the Laravel philosophy of keeping code clean, expressive, and reusable. Luckily, Laravel gives us a much better solution: its built-in Object-Relational Mapper (ORM), called Eloquent.
-### Understanding Eloquent (ORM) and Its Benefits
-An Object-Relational Mapper (ORM) is a layer that bridges the gap between our application's objects (PHP classes) and the relational database's tables. It translates PHP operations into SQL queries automatically.
-
-Here are the key benefits of using Eloquent:
+This works, but there’s a big drawback:  
+We’re mixing raw SQL queries directly with PHP logic. This makes our code hard to maintain, debug, and scale. Even worse, if we decide to switch databases (say, from SQLite to PostgreSQL), we might need to rewrite our queries, since SQL syntax can vary slightly.  
+Laravel gives us a much better solution: its built-in Object-Relational Mapper (ORM), called Eloquent.
+### Using Object-Relational Mapper (ORM)
+An Object-Relational Mapper (ORM) is a layer that bridges the gap between our application's objects (PHP classes) and the relational database's tables. It translates PHP operations into SQL queries automatically.  
+Here are the key benefits of using ORM:
 - Abstraction and Portability: We define our database structure using PHP migration files and interact with it using PHP model classes. The ORM generates the appropriate SQL. If we ever switch databases, we only need to change a configuration setting in our `.env` file, not rewrite our queries.
 - Improved Productivity and Readability: Instead of writing raw SQL strings, we work entirely in PHP.
-    - **SQL:** `SELECT * FROM users WHERE email = 'alice@example.com'`
-    - **Eloquent:** `User::where('email', 'alice@example.com')->get();`
+    - SQL: `SELECT * FROM users WHERE email = 'alice@example.com'`
+    - Eloquent ORM: `User::where('email', 'alice@example.com')->get();`
 - Data Integrity and Security: The ORM manages relationships and automatically escapes inputs, protecting our app from SQL injection attacks.
 - Team Consistency: By using the same data access patterns (Eloquent), all developers on a team can easily read and extend each other’s code.
-    
-In short, Laravel’s Eloquent ORM lets us focus on our application’s logic rather than the low-level details of database management.
-### Working with Eloquent Models and Migrations
-In Laravel, the database structure is defined in two key places:
-1. Migrations: These are PHP files in the `database/migrations` folder. They are like version control for our database. Each migration file contains instructions to `create` or `modify` a database table.
-    
-2. Models: These are PHP classes in the `app/Models` folder. Each model class represents a table, allowing us to interact with that table using PHP methods (e.g., `Todo::all()`).
-### Creating Our App
-Let’s create a new `todo_list` app to put our model knowledge into practice. This app will let us view tasks and add new ones.
 
-First, let’s create a new Laravel project named `workshop3`, then `cd` into it:
+### Working with Eloquent Models and Migrations
+In Laravel we will use th Eloquent ORM, To work with it we need to:
+1. Make Migrations Files which act like version control for our database we define them inside the `database/migrations` folder. Each migration file contains instructions to `create` or `modify` a database table.
+2. Make Models Classes, they are PHP classes represents a table, we define them inside  in the `app/Models` folder. We use them to interact with that table using PHP methods (e.g., `Todo::all()`).
+### Creating Our App
+Let’s create a new `todo_list` app to put our model knowledge into practice. This app will let us view tasks and add new ones.  
+First, we create a new Laravel project named `workshop3`:
 ```shell
 composer create-project laravel/laravel workshop3
 cd workshop3
 ```
 #### Creating The Model 
-After we create our new projects lets create the model where we represent our database schema. we can create both the model and its migration file with one single Artisan command.
+Now, we create the model that will represent our database schema. we use single command to create both the model and its migration file.
 ```shell
 # '-m' tells artisan to also create a migration file
 php artisan make:model Todo -m
 ```
 This command creates two files for us:
-1. **Model:** `app/Models/Todo.php`
-2. **Migration:** `database/migrations/xxxx_xx_xx_xxxxxx_create_todos_table.php`
+1. Model: `app/Models/Todo.php`
+2. Migration: `database/migrations/xxxx_xx_xx_xxxxxx_create_todos_table.php`
 
-Now, let's edit the **migration file** to define the structure of our tasks.   
+After creating the model, we must configure the migration file located in ``database/migrations/xxxx_xx_xx_xxxxxx_create_todos_table.php``. This file acts as version control for our database, allowing us to define and modify our table structure programmatically.  
+The migration file returns an anonymous class that extends the ``Migration`` class. It contains two primary methods: ``up()`` and ``down()``.  
+
+The ``up`` method is executed when we run ``php artisan migrate``. It is used to add new tables, columns, or indexes to our database.
+Inside this method, we use the ``Schema::create`` facade to build the table. It accepts two arguments:
+- The table name: In our case, 'todos'.
+- A Closure: This function receives a ``Blueprint $table`` object, which we use to define the columns.
+
+Inside the blueprint closure, we define our table schema using various column types:
+
+- ``$table->id()``: Creates an auto-incrementing id (BIGINT) as the primary key.
+- ``$table->string('title')``: Creates a VARCHAR column named title for short text.
+- ``$table->text('description')``: Creates a TEXT column named description for longer content.
+- ``$table->boolean('done')->default(false)``: Creates a boolean column named done that defaults to false (0) for new tasks.
+- ``$table->timestamps()``: A helper method that adds ``created_at`` and ``updated_at`` (TIMESTAMP) columns automatically.
+
+the ``down`` method does the opposite of ``up``. It typically contains ``Schema::dropIfExists('todos')``, which allows us to roll back (undo) the migration if needed.
+we do that using `php artisan migrate:rollback` which undo the last migration, if we want more we can use `php artisan migrate:rollback --step=2` which undo the past to migration, to undo everything we use `php artisan migrate:reset`
+
+With this in mind, let's edit out file now.   
 **`database/migrations/..._create_todos_table.php`:**
 ```php
 <?php
@@ -139,25 +168,15 @@ return new class extends Migration
     // ... down method ...
 };
 ```
-In this migration file, we create a class that contains an `up` method. This method runs when we want to create a new table in the database. Inside the `up` method, we use Laravel’s Schema builder to define the table name and the columns it should have, Each `$table->` line adds a new field to the table.
-
-Here’s what each field does:
-- **`$table->id()`**: Creates an auto-incrementing `id` primary key.
-- **`$table->string('title')`**: A text field (VARCHAR) for the task name.
-- **`$table->text('description')`**: A longer text area for details.
-- **`$table->boolean('done')->default(false)`**: A boolean to track completion.
-- **`$table->timestamps()`**: Automatically creates `created_at` and `updated_at` columns.
-    
-
-After defining the schema, we run the **`migrate`** command to create the table in our database.
+After defining the schema, we run the `php artisan migrate` command to create the table in our database.
 ```shell
 php artisan migrate
 ```
 This applies the migration, creating the `todos` table.
 #### Configuring the Model 
-Now that our database table exists, we'll configure the `Todo` model. We need to tell Eloquent which fields are "fillable", safe to be mass-assigned from a form. 
+Our next step is to configure the ``Todo`` model, we must tell ``Eloquent`` which fields are "fillable," meaning they are safe to be mass-assigned from a form.
 
-Open **`app/Models/Todo.php`** and add the `$fillable` property:
+Inside the``app/Models/Todo.php`` file we add to our class the ``$fillable`` property. This property is array of the columns we want to mark as fillable, in our case, we only need title and description.
 ```php
 <?php
 namespace App\Models;
@@ -172,29 +191,25 @@ class Todo extends Model
     ];
 }
 ```
-We only list `title` and `description` because we don't want the user to be able to set the `done` status when creating a task.
 #### Creating the Validation
-Now lets create **Form Request** class to auto-validates incoming requests.
-
-Let's create one:
+We need Form Request class to auto-validates incoming request, we create it using:
 ```shell
 php artisan make:request StoreTodoRequest
 ```
-This creates a new file at **`app/Http/Requests/StoreTodoRequest.php`**. Let's add our rules:
+This creates a new file at ``app/Http/Requests/StoreTodoRequest.php``. Let’s edit it as follows:
+- Update the ``authorize`` method: Return ``true`` from this method, as we are not implementing authorization logic yet.
+- Update the ``rules`` method: Return an array containing the validation rules for title and description. Both fields should be required and must be strings. Additionally, the title should have a maximum limit of 255 characters.
 ```php
 <?php
 namespace App\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 
-class StoreTodoRequest extends FormRequest
-{
-    public function authorize(): bool
-    {
+class StoreTodoRequest extends FormRequest{
+    public function authorize(): bool{
         return true;
     }
 
-    public function rules(): array
-    {
+    public function rules(): array{
         return [
             'title' => 'required|string|max:255',
             'description' => 'required|string',
@@ -202,55 +217,62 @@ class StoreTodoRequest extends FormRequest
     }
 }
 ```
-This form request will ensure the `title` and `description` are provided and are valid strings.
 #### Creating the Controller 
-Now let's define the Controller that will handle the logic, connecting our templates, validation, and database.
+We define Controller to handle the app logic.
 ```shell
 php artisan make:controller TodoController
 ```
-Open **`app/Http/Controllers/TodoController.php`** and add the following methods:
+This command will create `app/Http/Controllers/TodoController.php` file, this file contain empty `TodoController` class, inside it we create three methods:
+- `index`: This method get all the tasks from Todo model using `Todo::all()` and pass them to our view.
+- `create`: this method return the form view.
+- `store`: finally this method handel submitting the form, it use the `StoreTodoRequest` to validate the form data, then
+	- it get the inputs fields values. 
+	- it use ``Todo:create`` to create new record in our table.
+	- finally it redirect the user to ``task_list`` endpoint to see all submitted tasks.
+
 ```php
 <?php
-
 namespace App\Http\Controllers;
-
 use App\Models\Todo; 
 use App\Http\Requests\StoreTodoRequest; 
 
-class TodoController extends Controller
-{
+class TodoController extends Controller{
 
-    public function index()
-    {
+    public function index(){
         $tasks = Todo::all(); 
         return view('todo_list.tasks', ['tasks' => $tasks]);
     }
 
-
-    public function create()
-    {
+    public function create(){
         return view('todo_list.add_task');
     }
 
-
-    public function store(StoreTodoRequest $request)
-    {
+    public function store(StoreTodoRequest $request){
         $validatedData = $request->validated();
         Todo::create($validatedData);
         return redirect()->route('task_list');
     }
 }
 ```
-Our controller have three methods:   
-- ``index``: this method get all the tasks from Todo model and pass them to our templat
-- ``create``: this method return the form template where user can submit new task
-- `store`: finally this method handel submitting the form, it use the `StoreTodoRequest`to validate the form data, then
-	- it get the inputs fields values 
-	- it use ``Todo:create`` to create new record in our table using the form data
-	- finally it redirect the user to ``task_list`` endpoint to see all submitted tasks
-#### Creating the Templates 
-Now lets create templates for our app, we start by creating the base layout template.  
+#### Setting The Routes
+After we finish the controller methods, we connect them to URLs in the main `routes/web.php` file.   
+**`routes/web.php`:**
+```php
+<?php
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\TodoController;
 
+Route::get('/', function () {
+    return view('welcome');
+});
+
+## add this
+Route::get('/todo', [TodoController::class, 'index'])->name('task_list');
+Route::get('/todo/add', [TodoController::class, 'create'])->name('add_task');
+Route::post('/todo/add', [TodoController::class, 'store']); 
+```
+#### Creating the Viewss 
+Finally, we create views for our app, we start by creating the base layout view.    
 **`resources/views/layouts/base.blade.php`**
 ```php
 <!DOCTYPE html>
@@ -268,8 +290,7 @@ Now lets create templates for our app, we start by creating the base layout temp
 </body>
 </html>
 ```
-After that we create the template that will display our all the submitted tasks.
-
+Next we create the view that will display our all the submitted tasks.   
 **`resources/views/todo_list/tasks.blade.php`**
 ```php
 @extends('layouts.base')
@@ -292,8 +313,7 @@ After that we create the template that will display our all the submitted tasks.
 </div>
 @endsection
 ```
-Finally we create the template that display the add task form.   
-
+Finally the view that display the add task form.      
 **`resources/views/todo_list/add_task.blade.php`**
 ```php
 @extends('layouts.base')
@@ -325,75 +345,56 @@ Finally we create the template that display the add task form.
 @endsection
 ```
 #### Adding the Stylesheet
-We’ll use the stylesheet from the `materials` folder. Create a file called **`style.css`** inside `public/css/` and paste the styles from the `material/styles.css` file. The `asset()` helper in our Blade files will now find it.
-
-#### Setting The Routes
-Finally, we connect our controller methods to URLs in the main `routes/web.php` file.
-
-**`routes/web.php`:**
-```php
-<?php
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\TodoController;
-
-Route::get('/', function () {
-    return view('welcome');
-});
-
-
-Route::get('/todo', [TodoController::class, 'index'])->name('task_list');
-Route::get('/todo/add', [TodoController::class, 'create'])->name('add_task');
-Route::post('/todo/add', [TodoController::class, 'store']); 
+We’ll use the stylesheet from the `materials` folder. Create a file called `style.css` inside `public/css/` and paste the styles from the `material/styles.css` file. The `asset()` helper in our Blade files will now find it.
+#### Running The Application
+Now we can run our application using 
+```shell
+php artisan serve
 ```
-Now, when we visit **`http://127.0.0.1:8000/todo`**, we will see our task list, and at **`http://127.0.0.1:8000/todo/add`**, we will be able to add new tasks with full validation
+When we visit `http://127.0.0.1:8000/todo`, we will see our task list, and at `http://127.0.0.1:8000/todo/add`, we will be able to add new tasks with full validation
 ## Authentication and Session Management
-Authentication is the process of verifying the identity of a user, device, or system. In web applications, it ensures that only authorized individuals can interact with certain parts of the app, such as viewing personal information or performing actions.
+Authentication is the process of verifying the identity of a user, device, or system before granting access to resources or data. In other hand Authorization is the process of verifying if a user is authorizad to do a specific action.    
+Without authentication, anyone could access or modify data, leading to security risks like unauthorized edits, data breaches, or misuse. 
 
-Without authentication, anyone could access or modify data, leading to security risks. Authentication typically involves credentials like usernames and passwords.
+Authentication typically involves credentials like usernames and passwords, but it can also include more advanced methods such as two-factor authentication (2FA), biometrics, or token-based systems.
 ### Authentication in Laravel
-Laravel provides a robust, built-in authentication system. However, instead of being a pre-installed set of components, Laravel offers optional Starter Kits (like **Breeze** and **Jetstream**) that scaffold a complete authentication system for us in minutes.
-
-This system is flexible and handles user models, login/logout/registration controllers and views, password hashing, and permissions.
-
 Laravel's authentication is based on sessions, which allow the server to remember users across requests. Since HTTP is stateless, sessions provide a way to maintain state, like keeping a user logged in.
 #### Sessions in Laravel
-How does a web application "remember" us between clicks? The web itself is stateless. To solve this, Laravel uses sessions. A session is a mechanism that allows Laravel to store user-specific data between requests essentially acting as temporary memory for the user.
+How does a website "remember" who you are from one click to the next? By default, the web is "stateless," meaning every time you click a link or refresh a page, the server treats you like a total stranger who just arrived for the first time.
 
-For example, once a user logs in, Laravel stores their user ID in a session so the app can recognize them on every subsequent page.
+To solve this, Laravel uses sessions. Session act like a temporary locker assigned to you. When you first visit the site, the server hands you a unique "locker key" (stored in your browser as a cookie). As long as you hold that key, the server can look inside your specific locker to retrieve your information—like your name or your shopping cart—every time you move to a new page.
 
-Laravel handles session management seamlessly. Here are the core components:
-
+For example, once you log in, Laravel stores your id in a session. This allows the application to recognize you instantly on every subsequent page without asking for your password over and over again.
 #### Session Middleware
-In modern Laravel , the session middleware (`\Illuminate\Session\Middleware\StartSession::class`) is enabled by default for all "web" requests, This middleware automatically starts, loads, and saves session data for each incoming web request.    
+In modern Laravel, the session middleware (`\Illuminate\Session\Middleware\StartSession::class`) is enabled by default for all "web" requests, This middleware automatically starts, loads, and saves session data for each incoming web request.    
 #### Session Drivers
 The "driver" determines where our session data is actually stored. This is set in our `.env` file with the `SESSION_DRIVER` key.
-- **`file`**: Stores session data in files within `storage/framework/sessions`. This is simple and works well for development.
-- **`database`**: Stores sessions in a database table. This is a robust option for multi-server production environments. to use this, you must first run `php artisan session:table` (to create the migration) and then `php artisan migrate`.
-- **`redis`** or **`memcached`**: Uses a fast, in-memory cache. This is the highest-performance option, ideal for high-traffic applications.
-- **`cookie`**: Stores the entire session payload in a secure, encrypted cookie. This is stateless for our server but has cookie size limitations.
+- `file`: Stores session data in files within `storage/framework/sessions`. This is simple and works well for development.
+- `database`: Stores sessions in a database table. This is a robust option for multi-server production environments. to use this, you must first run `php artisan session:table` (to create the migration) and then `php artisan migrate`.
+- `redis` or `memcached`: Uses a fast, in-memory cache. This is the highest-performance option, ideal for high-traffic applications.
+- `cookie`: Stores the entire session payload in a secure, encrypted cookie. This is stateless for our server but has cookie size limitations.
 #### Authentication & Security
-We don't need to manually check session data to see if a user is logged in. Laravel's authentication system does this for us.
-The `\Illuminate\Auth\Middleware\Authenticate::class` middleware (also part of the default web stack) automatically:
+Laravel's authentication system check session data to see if a user is logged in.  
+The `\Illuminate\Auth\Middleware\Authenticate::class` middleware automatically:
 1. Checks the session for an authenticated user's ID.
 2. Fetches that user from the database.
 3. Attaches the `User` object to the request, making it available everywhere (e.g., via `Auth::user()` or `request()->user()`).
 ### Updating Our To-Do List App
 Our current to-do app has a major issue: all users share the same task list, and anyone can submit a task this not good because users can't keep track on their own tasks and hacker can explot this to subit random stuffs without leaving trace, To make our app secure, we need to update it so that each user only sees and manages their own tasks.    
 To achieve this, we’ll:
-1. Install a Starter Kit (Laravel Breeze) to handle registration, login, and logout.
+1. Install a Starter Kit to handle registration, login, and logout.
 2. Update the `Todo` model and migration to include a `user_id` reference.
 3. Modify our routes and controller so that each user only interacts with their personal to-do list.
 #### Adding User Authentication 
-Before we restrict tasks, we need users to be able to register, log in, and log out. Instead of manually creating forms and controllers, the idiomatic Laravel way is to use a starter kit. We'll use Breeze.
-
+Before we restrict tasks, we need users to be able to register, log in, and log out. Instead of manually creating forms and controllers, the idiomatic Laravel way is to use a starter kit. We'll use Breeze.  
 We first Install Breeze using Composer:
 ```shell
 composer require laravel/breeze --dev
 ```
-Next, run the `breeze:install` command. This is what adds all the routes, controllers, and view files to your project.
+Next, we run the `breeze:install` command. It will add all the routes, controllers, and view files to our project.
 ```shell
 php artisan breeze:install
-#When prompted, choose "Blade" then 0 for dark mode and 1 for test unit (we will work test more in next workshop)
+#When prompted, choose "Blade" then 0 for dark mode and 1 for test unit
 ```
 After that we install the front-end dependencies and build our assets:
 ```shell
@@ -407,9 +408,9 @@ php artisan migrate
 Now, if we run our application, we can create an account, log in, and log out. When a user logs in or registers, they are automatically redirected to the dashboard. All of this functionality is generated for us by Breeze.
 
 Breeze automatically provides:
-- **Controllers** in `app/Http/Controllers/Auth/` for authentication actions like login and registration.
-- **Views** (Blade templates) in `resources/views/auth/` for the login, registration, and related pages.
-- **Routes** in the `routes/auth.php` file to handle authentication endpoints.
+- Controllers: in `app/Http/Controllers/Auth/` for authentication actions like login and registration.
+- Views: in `resources/views/auth/` for the login, registration, and related pages.
+- Routes: in the `routes/auth.php` file to handle authentication endpoints.
 ### Update The todo_list Feature
 #### Updating the Todo Model
 ow that authentication is set up, let’s update our `todo_list` feature. The first step is to link each task to a specific user. Since we cannot modify the original `todos` migration file after it has already been executed Laravel will not run it again we need to create a new migration that adds the `user_id` column
@@ -564,7 +565,7 @@ After that we start our server by using
 ```shell
 php artisan serve
 ```
-If a user visits the `/todo` endpoint without being logged in, they will be redirected to the login page. After logging in or registering, they are automatically redirected to the dashboard. From there, they can log out or visit `/profile` to edit their password or delete their account these templates and functionality are automatically generated by Breeze.   
+If a user visits the `/todo` endpoint without being logged in, they will be redirected to the login page. After logging in or registering, they are automatically redirected to the dashboard. From there, they can log out or visit `/profile` to edit their password or delete their account these views and functionality are automatically generated by Breeze.   
 Once logged in, the user is authenticated and can access the todo section: they can visit `/todo` to see all their tasks or go to `/todo/add` to create a new task. This flow ensures that only authenticated users can manage their tasks while providing a smooth, secure user experience.
 ## Working with Artisan Tinker
 We built our to-do list app, connected it to a database, added authentication, and made it fully functional. But sometimes, we need to test a query, fix a record, or experiment with models without creating a new controller, view, or route every time.
