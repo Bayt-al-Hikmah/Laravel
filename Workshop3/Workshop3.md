@@ -352,53 +352,34 @@ Now we can run our application using
 php artisan serve
 ```
 When we visit `http://127.0.0.1:8000/todo`, we will see our task list, and at `http://127.0.0.1:8000/todo/add`, we will be able to add new tasks with full validation
-## Authentication and Session Management
-Authentication is the process of verifying the identity of a user, device, or system before granting access to resources or data. In other hand Authorization is the process of verifying if a user is authorizad to do a specific action.    
-Without authentication, anyone could access or modify data, leading to security risks like unauthorized edits, data breaches, or misuse. 
-
+## Authentication, Authorization and Session Management
+Authentication is the process of verifying the identity of a user, device, or system before granting access to resources or data, with authentication we verify who the user is. In other hand Authorization is the process of verifying if a user is authorizad to do a specific action, with authorization we verify what user authorized to do.    
+Without authentication, anyone could access or modify data, leading to security risks like unauthorized edits, data breaches, or misuse.   
 Authentication typically involves credentials like usernames and passwords, but it can also include more advanced methods such as two-factor authentication (2FA), biometrics, or token-based systems.
-### Authentication in Laravel
-Laravel's authentication is based on sessions, which allow the server to remember users across requests. Since HTTP is stateless, sessions provide a way to maintain state, like keeping a user logged in.
-#### Sessions in Laravel
-How does a website "remember" who you are from one click to the next? By default, the web is "stateless," meaning every time you click a link or refresh a page, the server treats you like a total stranger who just arrived for the first time.
+### Sessions
+How does a website "remember" who you are from one click to the next? By default, the web is "stateless," meaning every time you click a link or refresh a page, the server treats you like a total stranger who just arrived for the first time.   
+To solve this, We use sessions. Session act like a temporary locker assigned to you. When you first visit the site, the server hands you a unique "locker key" stored in your browser as a cookie. As long as you hold that key, the server can look inside your specific locker to retrieve your information like your name or your shopping cart every time you move to a new page.  
+For example, once you log in, Laravel stores your id in a session. This allows the application to recognize you instantly on every subsequent page without asking you to login again.
 
-To solve this, Laravel uses sessions. Session act like a temporary locker assigned to you. When you first visit the site, the server hands you a unique "locker key" (stored in your browser as a cookie). As long as you hold that key, the server can look inside your specific locker to retrieve your information—like your name or your shopping cart—every time you move to a new page.
-
-For example, once you log in, Laravel stores your id in a session. This allows the application to recognize you instantly on every subsequent page without asking for your password over and over again.
-#### Session Middleware
-In modern Laravel, the session middleware (`\Illuminate\Session\Middleware\StartSession::class`) is enabled by default for all "web" requests, This middleware automatically starts, loads, and saves session data for each incoming web request.    
-#### Session Drivers
-The "driver" determines where our session data is actually stored. This is set in our `.env` file with the `SESSION_DRIVER` key.
-- `file`: Stores session data in files within `storage/framework/sessions`. This is simple and works well for development.
-- `database`: Stores sessions in a database table. This is a robust option for multi-server production environments. to use this, you must first run `php artisan session:table` (to create the migration) and then `php artisan migrate`.
-- `redis` or `memcached`: Uses a fast, in-memory cache. This is the highest-performance option, ideal for high-traffic applications.
-- `cookie`: Stores the entire session payload in a secure, encrypted cookie. This is stateless for our server but has cookie size limitations.
-#### Authentication & Security
-Laravel's authentication system check session data to see if a user is logged in.  
-The `\Illuminate\Auth\Middleware\Authenticate::class` middleware automatically:
-1. Checks the session for an authenticated user's ID.
-2. Fetches that user from the database.
-3. Attaches the `User` object to the request, making it available everywhere (e.g., via `Auth::user()` or `request()->user()`).
 ### Updating Our To-Do List App
-Our current to-do app has a major issue: all users share the same task list, and anyone can submit a task this not good because users can't keep track on their own tasks and hacker can explot this to subit random stuffs without leaving trace, To make our app secure, we need to update it so that each user only sees and manages their own tasks.    
-To achieve this, we’ll:
-1. Install a Starter Kit to handle registration, login, and logout.
-2. Update the `Todo` model and migration to include a `user_id` reference.
-3. Modify our routes and controller so that each user only interacts with their personal to-do list.
+Our current to-do app has a major issue: all users share the same task list, and anyone can submit a task this not good because users can't keep track on their own tasks and hacker can exploit this to submit random stuffs without leaving trace, To make our app secure, we need to update it so that each user only sees and manages their own tasks.    
 #### Adding User Authentication 
-Before we restrict tasks, we need users to be able to register, log in, and log out. Instead of manually creating forms and controllers, the idiomatic Laravel way is to use a starter kit. We'll use Breeze.  
-We first Install Breeze using Composer:
+Before we restrict tasks, we need users to be able to register, log in, and log out. Instead of manually creating forms and controllers, We will use a starter kit that handel all the authentication buissness for us. We'll use Breeze.   
+First we install it using Composer:
 ```shell
 composer require laravel/breeze --dev
 ```
-Next, we run the `breeze:install` command. It will add all the routes, controllers, and view files to our project.
+Next, we run the `breeze:install` command, to add all the routes, controllers, and view files to our project.
 ```shell
 php artisan breeze:install
-#When prompted, choose "Blade" then 0 for dark mode and 1 for test unit
+# When prompted, choose "Blade" then 0 for dark mode and 1 for test unit
 ```
-After that we install the front-end dependencies and build our assets:
+Breeze use Vite as front-end framework so we need to install the front-end dependencies, we do it using:
 ```shell
 npm install
+```
+After that, we build our assets, so they can be served
+```shell
 npm run build
 ```
 Finally we run the migration to updates our database with table that `breeze` use
@@ -413,12 +394,15 @@ Breeze automatically provides:
 - Routes: in the `routes/auth.php` file to handle authentication endpoints.
 ### Update The todo_list Feature
 #### Updating the Todo Model
-ow that authentication is set up, let’s update our `todo_list` feature. The first step is to link each task to a specific user. Since we cannot modify the original `todos` migration file after it has already been executed Laravel will not run it again we need to create a new migration that adds the `user_id` column
+Now that authentication is set up, let’s update our `todo_list` feature. The first step is to link each task to a specific user. Since we cannot modify the original `todos` migration file since it has already been executed Laravel will not run it again, we need to create a new migration that adds the `user_id` column.  
+First we run the command to create new migration:
 ```shell
 php artisan make:migration add_user_id_to_todos_table --table=todos
 ```
-The `--table=todos` option tells Laravel that this migration will modify the existing `todos` table instead of creating a new one. This way, Laravel knows to add new columns to the current table rather than generate a fresh schema.   
+The `--table=todos` option tells Laravel that this migration will modify the existing `todos` table instead of creating a new one.    
 Now lets edit the new migration file and add to it the for foreign key to users.
+
+We declare new column using `$table->foreignId()` we name it `user_id`, and we use `constrained()` to automatically sets up the foreign key relationship with the `users` table, and, `cascadeOnDelete()` ensures that if a user is deleted from the system, all of their associated tasks will be removed as well.
 ```php
  <?php
     use Illuminate\Database\Migrations\Migration;
@@ -438,9 +422,7 @@ Now lets edit the new migration file and add to it the for foreign key to users.
         }
     };
 ```
-In this migration, we are updating the existing `todos` table by adding a new `user_id` column. This column will act as a foreign key, linking each task to the user who created it. The `foreignId('user_id')` method creates the column, and `constrained()` automatically sets up the foreign key relationship with the `users` table, assuming the default `id` primary key. Finally, `cascadeOnDelete()` ensures that if a user is deleted from the system, all of their associated tasks will be removed as well. This allows us to properly connect todos to specific users and maintain clean, consistent data in our database.
-
-Finally we need to update the `Todo` model to define the relationship between a task and its owner. We add a `user()` method inside the `Todo` model that returns `$this->belongsTo(User::class)`. This tells Laravel that each todo item belongs to a specific user. With this in place, we can easily access the user who created a task by calling `$todo->user`, and Eloquent will automatically handle the relationship for us.
+Finally we update the `Todo` model to define the relationship between a task and its owner. We add a `user()` method inside the `Todo` model that returns `$this->belongsTo(User::class)`. This tells Laravel that each todo item belongs to a specific user. With this in place, we can easily access the user who created a task by calling `$todo->user`, and Eloquent will automatically handle the relationship for us.
 
 **``app/Models/Todo.php``**
 ```php
@@ -460,8 +442,8 @@ class Todo extends Model
 	}
 }
 ```
-#### Updating the Todo Model
-Now that each todo is linked to a user, we need to define the opposite side of the relationship inside the `User` model. Since a single user can have many todo items, we add a `tasks()` method that returns `$this->hasMany(Todo::class)`. This is the Laravel equivalent of Django’s `related_name="tasks"`. With this method in place, we can easily retrieve all tasks that belong to a specific user by calling `$user->tasks`. Laravel will automatically handle the relationship and fetch the associated todos from the database.
+#### Updating the User Model
+Now that each todo is linked to a user, we need to define the opposite side of the relationship inside the `User` model. Since a single user can have many todo items, we create  `tasks()` method that returns `$this->hasMany(Todo::class)`, with this we can return all tasks linked to specific user by calling `$user->tasks`. 
 
 **``app/Models/User.php``**
 ```php
@@ -482,8 +464,10 @@ Now that each todo is linked to a user, we need to define the opposite side of t
     }
 ```
 ### Updating the Controllers
-The final thing to do now is editing our `TodoController` to only show the logged-in user's tasks.
+We also edit our `TodoController` to only show the logged-in user's tasks.   
+We updated the `index` method, we call `$request->user()->tasks()->get()` to automatically retrieve only the tasks associated with the logged-in user.  
 
+We also updated the `store` method to attach new tasks to the authenticated user. We use `$request->user()->tasks()->create($request->validated())`. This tells Laravel to create the task through the user's relationship, which automatically fills in the correct `user_id`.   
 **`app/Http/Controllers/TodoController.php`**
 ```php
 <?php
@@ -516,11 +500,8 @@ class TodoController extends Controller
 	}
 }
 ```
-We updated the `index` method so that it only returns tasks that belong to the currently authenticated user. Instead of fetching all todos from the database, we call `$request->user()->tasks()->get()`. This uses the relationship we defined earlier to automatically retrieve only the tasks associated with the logged-in user. We then pass those tasks to the view so each user only sees their own list.   
-
-We also updated the `store` method to attach new tasks to the authenticated user. Instead of manually adding a `user_id`, we use `$request->user()->tasks()->create($request->validated())`. This tells Laravel to create the task through the user's relationship, which automatically fills in the correct `user_id`. It also ensures the request data is validated before saving. After storing the new task, we redirect the user back to the task list page.
 ### Securing Routes
-Finally now lets apply the `auth` middleware to our `todo` routes. We do that in the **`routes/web.php`** file. Breeze has already created a middleware group for us. We just need to move our `todo` routes inside it.
+Finally we need tp apply the `auth` middleware to our `todo` routes. We do that in the `routes/web.php` file. Breeze has already created a middleware group for us. We just need to move our `todo` routes inside it.
 
 **`routes/web.php`**
 ```php
@@ -551,22 +532,19 @@ require __DIR__.'/auth.php';
 ```   
 The `/dashboard` route uses the `auth` and `verified` middleware, which means the user must be logged in and have a verified email to view the dashboard.   
 
-For the todo and profile routes, we group them under `Route::middleware('auth')->group(...)`. This ensures that all routes inside the group including viewing, creating, and storing todos, as well as editing the profile are only accessible to logged-in users
-
-Now, any user trying to visit `/todo` will be automatically redirected to the login page (`/login`), which was created by Breeze.
+For the todo and profile routes, we group them under `Route::middleware('auth')->group(...)`. All routes inside the group are only accessible to logged-in users. If user isn't logged in he will be automatically redirected to the login page (`/login`).
 ### Running the App
 Everything ready, we can now apply our database migration using
 ```shell
 php artisan migrate:fresh
 ```
-This command will drop all tables in our database and then run every migration from the beginning, giving us a clean start with the new model structure.
-
+This command will drop all tables in our database and then run every migration from the beginning, giving us a clean start with the new model structure.  
 After that we start our server by using
 ```shell
 php artisan serve
 ```
-If a user visits the `/todo` endpoint without being logged in, they will be redirected to the login page. After logging in or registering, they are automatically redirected to the dashboard. From there, they can log out or visit `/profile` to edit their password or delete their account these views and functionality are automatically generated by Breeze.   
-Once logged in, the user is authenticated and can access the todo section: they can visit `/todo` to see all their tasks or go to `/todo/add` to create a new task. This flow ensures that only authenticated users can manage their tasks while providing a smooth, secure user experience.
+If a user visits the `/todo` endpoint without being logged in, they will be redirected to the login page. After logging in or registering, they are automatically redirected to the dashboard. From there, they can log out or visit `/profile` to edit their password or delete their account these views and functionality are automatically generated by Breeze.    
+Once logged in, the user is authenticated and can access the todo section: they can visit `/todo` to see all their tasks or go to `/todo/add` to create a new task.
 ## Working with Artisan Tinker
 We built our to-do list app, connected it to a database, added authentication, and made it fully functional. But sometimes, we need to test a query, fix a record, or experiment with models without creating a new controller, view, or route every time.
 
