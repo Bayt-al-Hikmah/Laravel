@@ -118,9 +118,7 @@ Next we edit the `Task` model and we set the ``$fillable`` fields, and we define
 **``app/Models/Task.php``**
 ```php
 <?php
-
 namespace App\Models;
-
 use Illuminate\Database\Eloquent\Model;
 
 class Task extends Model
@@ -165,7 +163,7 @@ class TaskResource extends JsonResource{
 }
 ```
 After that we define the User Resouces.    
-**`Http\Resources\TaskResource.php`**
+**`Http\Resources\UserResource.php`**
 ```php
 <?php
 namespace App\Http\Resources;
@@ -179,7 +177,7 @@ class UserResource extends JsonResource{
         'id' => $this->id,
         'name' => $this->name,
         'email' => $this->email,
-        'avatar' => $this->avatar,
+        'avatar' => 'storage/'. $this->avatar,
     ];
     }
 }
@@ -214,7 +212,8 @@ class LoginRequest extends FormRequest{
         return true;
     }
 
-    public function rules(): array{
+    public function rules(): array
+    {
         return [
             'email' => 'required|string|max:255',
             'password' => 'required|string',
@@ -226,14 +225,17 @@ We move to the `RegisterRequest` same as before we set `authorize` to return tru
 **`Http/Requests/RegisterRequest.php`**
 ```php
 <?php
+
 namespace App\Http\Requests;
+
 use Illuminate\Foundation\Http\FormRequest;
 
 class RegisterRequest extends FormRequest{
+
     public function authorize(): bool{
         return true;
     }
-
+    
     public function rules(): array{
         return [
             'name' => 'required|string|unique:users',
@@ -248,19 +250,21 @@ Next, we go to `UpdateProfile` here only logged-in user can edit their profile s
 **`Http/Requests/UpdateProfile.php`**
 ```php
 <?php
+
 namespace App\Http\Requests;
+
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateProfile extends FormRequest{
 
     public function authorize(): bool{
-        return $request->user();
+        return $this->user() !== null;
     }
 
     public function rules(): array{
         return [
-            'username' => 'required|string|unique:users',
-            'email' => 'required|email|unique:users',
+            'name' => 'required|string',
+            'email' => 'required|email',
             'avatar' => 'nullable|image'
         ];
     }
@@ -276,7 +280,7 @@ use Illuminate\Foundation\Http\FormRequest;
 class UpdatePassword extends FormRequest{
 
     public function authorize(): bool{
-        return $request->user();
+        return $this->user() !== null;
     }
 
     public function rules(): array{
@@ -290,13 +294,14 @@ Finally we set the ``CreateTask`` and ``UpdateTask`` Request validator, both req
 **`Http/Requests/CreateTask.php`**
 ```php
 <?php
+n<?php
 namespace App\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 
 class CreateTask extends FormRequest{
 
     public function authorize(): bool{
-        return $request->user();
+        return $this->user() !== null;
     }
 
     public function rules(): array{
@@ -315,7 +320,7 @@ use Illuminate\Foundation\Http\FormRequest;
 class UpdateTask extends FormRequest{
 
     public function authorize(): bool{
-        return $request->user();
+       return $this->user() !== null;
     }
 
     public function rules(): array{
@@ -324,5 +329,551 @@ class UpdateTask extends FormRequest{
         ];
     }
 }
+
 ```
 ### Creating The Controllers
+We defined our Models and Resources now we need to create the controllers, to handel our app logic, we will need three controllers 
+- `authcontroller`: Handel Login and Register logic
+- `usercontroller`: Handel Updating User Profile, And User Password Logic
+- `taskcontroller`: Handel Adding, Updating and Deleting Tasks
+```shell
+php artisan make:controller authcontroller
+php artisan make:controller usercontroller
+php artisan make:controller taskcontroller
+``` 
+We start with `authcontroller` it should have two method. `login` to log user in and `register` to register and create new user.
+```php
+<?php
+namespace App\Http\Controllers;
+
+use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
+use App\Http\Requests\RegisterRequest;
+use App\Http\Requests\LoginRequest;
+use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\Controller;
+
+
+class authcontroller extends Controller {
+    public function register(RegisterRequest $request)
+    {
+        $validated = $request->validated();
+
+        if ($request->hasFile('avatar')) {
+            $path = $request->file('avatar')->store('uploads', 'public');
+            $validated['avatar'] = $path;
+        }
+
+        $user = User::create([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => Hash::make($validated['password']),
+            'avatar' => $validated['avatar'] ?? null,
+        ]);
+
+        return response()->json(['message' => 'User registered successfully'], 201);
+    }
+
+    public function login(LoginRequest $request){
+        $validated = $request->validated();
+
+        if (Auth::attempt($validated)) {
+        $request->session()->regenerate();
+
+        return response()->json([
+            'message' => 'Login successful',
+        ], 200);
+    }
+
+    return response()->json([
+        'message' => 'The provided credentials do not match our records.',
+    ], 401);
+    }
+}
+```
+After that we move to the `taskcontroller` where we define four methods.
+- `index` return all user task 
+- `store` create new task
+- `update` edit a specific task state
+- `delete` remove a specific task state
+
+```php
+<?php
+
+namespace App\Http\Controllers;
+use App\Models\Task;
+use App\Http\Resources\TaskResource;
+use Illuminate\Http\Request;
+use App\Http\Requests\UpdateTask;
+use App\Http\Requests\CreateTask;
+use App\Http\Controllers\Controller;
+
+class taskcontroller extends Controller{
+    public function index(Request $request){
+        if (! $request->user()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        return TaskResource::collection($request->user()->tasks);
+    }
+
+    public function store(CreateTask $request){
+        $validated = $request->validated();
+        $task = $request->user()->tasks()->create($validated);
+        return new TaskResource($task);
+    }
+
+    public function update(UpdateTask $request, $task_id){
+        $validated = $request->validated();
+        $task = Task::findOrFail($task_id);
+        if ($request->user()->id !== $task->user_id) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $task->update(['state' =>$validated['state']]);
+         return  response()->json(['message' => 'Task Updated'], 201);
+    }
+
+    public function destroy(Request $request,  $task_id){
+        $task = Task::findOrFail($task_id);
+        if ($request->user()->id !== $task->user_id) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $task->delete();
+        return response()->json(['message' => 'Task deleted']);
+    }
+}
+```
+Finally we set the `usercontroller` it got three methods.
+- `index` return the user information.
+- `update_profile` update user profile.
+- `update_password` update user password.
+
+```php
+<?php
+
+namespace App\Http\Controllers;
+use App\Models\User;
+use App\Http\Resources\UserResource;
+use Illuminate\Http\Request;
+use App\Http\Controllers\Controller;
+use App\Http\Requests\UpdatePassword;
+use App\Http\Requests\UpdateProfile;
+use Illuminate\Support\Facades\Hash;
+
+class usercontroller extends Controller{
+    public function index(Request $request){
+        if (! $request->user()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        return new UserResource($request->user());
+    }
+
+    public function update_profile(UpdateProfile $request){
+        $validated = $request->validated();
+        if ($request->hasFile('avatar')) {
+            $path = $request->file('avatar')->store('uploads', 'public');
+            $validated['avatar'] = $path;
+        }
+        $request->user()->update([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'avatar' => $validated['avatar'] ?? $request->user()->avatar,
+        ]);
+        return response()->json(['message' => 'Profile Updated'], 201);
+    }
+
+    public function update_password(UpdatePassword $request){
+    $validated = $request->validated();
+    $password = Hash::make($validated['password']);
+
+    $request->user()->update([
+        'password' => Hash::make($password),
+    ]);
+
+    return response()->json(['message' => 'Password updated successfully']);
+    }
+}
+```
+### Configuring The routes
+Finally we add our controllers to the ``routes/api.php`` route file. so our app can serve them.
+```php
+<?php
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\authcontroller;
+use App\Http\Controllers\taskcontroller;
+use App\Http\Controllers\usercontroller;
+
+Route::post('/auth/register', [authcontroller::class, 'register']);
+Route::post('/auth/login', [authcontroller::class, 'login']);
+
+Route::get('/tasks', [taskcontroller::class, 'index']);
+Route::post('/tasks', [taskcontroller::class, 'store']);
+Route::put('/tasks/{task_id}', [taskcontroller::class, 'update']);
+Route::delete('/tasks/{task_id}', [taskcontroller::class, 'destroy']);
+
+Route::get('/user', [usercontroller::class, 'index']);
+Route::patch('/user', [usercontroller::class, 'update_password']);
+Route::put('/user', [usercontroller::class, 'update_profile']);
+```
+And we set the `routes/web.php` file to serve the view that represent our app.
+```php
+<?php
+
+use Illuminate\Support\Facades\Route;
+
+Route::get('/', function () {
+    return view('index');
+});
+```
+Adding restfull configuration to our `bootstrap/app.php`, we set the configuration for `restfull` api.
+```php
+<?php
+
+use Illuminate\Foundation\Application;
+use Illuminate\Foundation\Configuration\Exceptions;
+use Illuminate\Foundation\Configuration\Middleware;
+
+return Application::configure(basePath: dirname(__DIR__))
+    ->withRouting(
+        web: __DIR__.'/../routes/web.php',
+        api: __DIR__.'/../routes/api.php',
+        commands: __DIR__.'/../routes/console.php',
+        health: '/up',
+    )
+    ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->statefulApi(); // we add this
+    })
+    ->withExceptions(function (Exceptions $exceptions): void {
+        //
+    })->create();
+```
+### Creating The Interface
+Now that our API is fully functional, we need a user interface to interact with it. Instead of the server rendering HTML pages for every route, we will serve a single HTML file (Single Page Application approach) and use JavaScript to fetch data from our API and update the DOM dynamically.
+
+#### The View and Style
+We created a simple interface with two main sections: a Login section and a Dashboard section. Initially, the dashboard is hidden. After the user successfully logs in, the login section will be hidden, and the dashboard will be displayed.
+
+We can find the HTML template and styling files inside the ``materials`` folder. The ``index.blade.php`` file should be moved to the ``resources/views`` folder and the ``style.css`` file should be moved to the ``public/css`` folder.
+
+#### Client-Side Logic (JavaScript)
+This is the most important part. The JavaScript file acts as the bridge between HTML events (such as clicks) and the Laravel REST API.
+
+The code listens for form submissions and button clicks, then makes API calls using fetch to the corresponding endpoints. For example, when a user logs in, it sends a POST request to ``/api/auth/login``, stores the session, and updates the view to display the user’s tasks. Similarly, task actions like creating, updating, or deleting a task are sent to the ``/api/tasks`` endpoints, and the page updates dynamically without reloading.  
+The file is currently in the materials folder. We should move it to the ``public/js`` folder so it can be served as a static asset by Laravel.
+
+#### Ramark 
+When sending request to retrive data we need to add specific header to our ``fetch`` function.  
+```js
+headers:{
+    'Accept': 'application/json',
+    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content // this most exist
+}
+```
+And for our view we must add the following meta element to load the csrf token. 
+```html
+<meta name="csrf-token" content="{{ csrf_token() }}">
+```
+### Running The server
+Finally we can run our migrations and start our server
+```shell
+php artisan migrate:fresh
+php artisan storage:link
+php artisan serve
+```
+### Token-Based Authentication in Laravel
+In the current Task Manager API, we use session to manage authentication. This approach is effective for traditional web applications where the server and client are closely tied, and the browser handles session cookies automatically.    
+However, modern APIs often require authentication that is stateless and can be easily used by various clients (mobile apps, other servers, JavaScript frontends). This is where Token-Based Authentication comes in.
+#### How Tokens Work with Sanctum
+Instead of the server storing a session ID in a file or database to match a cookie, the server issues a Plain Text Token.
+1. **Client Logs In:** The user sends credentials to `/api/login`.
+2. **Server Generates Token:** Laravel verifies the user and creates a Personal Access.
+3. **Client Stores Token:** The frontend saves this string.
+4. **API Access:** For every request to protected routes (like `/api/tasks`), the client sends the token in the `Authorization` header as a `Bearer` token.
+5. **Server Verification:** Sanctum validates the token and attaches the authenticated user to the request.
+#### Implementing Token Authentication
+First we start by editing our User model
+```php
+use Laravel\Sanctum\HasApiTokens; we add this
+// other code
+use HasFactory, HasApiTokens /* add this*/, Notifiable; // inside the User class we add HasApiTokens
+// other code
+```
+adding this will allow use to call ``$user->createToken('token-name')`` in our controllers. to generates token. and when user sends a request to our API with that token in the header, Laravel uses this trait to look up the token in the database and figure out which user it belongs to.
+
+After that we edit our ``usercontroller`` we edit the log in check we use `Hash` and we generate and return token instead of saving user on session, and we create logout function
+```php
+    public function login(LoginRequest $request){
+        $validated = $request->validated();
+        $user = User::where('email', $validated['email'])->first();
+        if (!$user || !Hash::check($validated['password'], $user->password)) {
+            return response()->json([
+            'message' => 'Invalid credentials',
+            ], 401);
+        }
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        return response()->json([
+            'message' => 'Login successful',
+            'access_token' => $token,
+        ], 200);
+    }
+
+// this for logging out
+    public function logout(Request $request){
+        $request->user()->currentAccessToken()->delete();
+
+        return response()->json([
+            'message' => 'Successfully logged out. Token revoked.'
+        ], 200);
+    }
+```
+Finally we edit the ``api.php`` file we use `Route::middleware('auth:sanctum')->group` middleware for the routes that need authentication
+```php
+<?php
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\authcontroller;
+use App\Http\Controllers\taskcontroller;
+use App\Http\Controllers\usercontroller;
+
+Route::post('/auth/register', [authcontroller::class, 'register']);
+Route::post('/auth/login', [authcontroller::class, 'login']);
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/tasks', [taskcontroller::class, 'index']);
+    Route::post('/tasks', [taskcontroller::class, 'store']);
+    Route::put('/tasks/{task_id}', [taskcontroller::class, 'update']);
+    Route::delete('/tasks/{task_id}', [taskcontroller::class, 'destroy']);
+
+    Route::get('/user', [usercontroller::class, 'index']);
+    Route::patch('/user', [usercontroller::class, 'update_password']);
+    Route::put('/user', [usercontroller::class, 'update_profile']);
+    Route::get('/auth/logout', [authcontroller::class, 'logout']);
+});
+```
+#### Edditing bootstrap
+We edit the ``bootstrap/app.js``, and remove the middlewar so our app become fully stateless
+```php
+<?php
+
+use Illuminate\Foundation\Application;
+use Illuminate\Foundation\Configuration\Exceptions;
+use Illuminate\Foundation\Configuration\Middleware;
+
+return Application::configure(basePath: dirname(__DIR__))
+    ->withRouting(
+        web: __DIR__.'/../routes/web.php',
+        api: __DIR__.'/../routes/api.php',
+        commands: __DIR__.'/../routes/console.php',
+        health: '/up',
+    )
+    ->withMiddleware(function (Middleware $middleware): void {
+        
+    })
+    ->withExceptions(function (Exceptions $exceptions): void {
+        //
+    })->create();
+
+```
+#### Editing the Javascript
+Now we update our JavaScript to work with JWT authentication. When a user logs in, the backend returns a token, which we store in the browser using:
+```js
+localStorage.setItem('token', data.access_token);
+```
+For every subsequent API request, we need to include this token in the Authorization header so the backend can verify the user. This is done by adding:
+```js
+'Accept': 'application/json',
+'Authorization': `Bearer ${localStorage.getItem('token')}` 
+```
+This ensures that only authenticated users can access protected endpoints.
+### API Rate Limiting
+As our API gains more users, we need to protect it from abuse, excessive load, and denial-of-service (DoS) attacks. Rate Limiting is the practice of restricting the number of API requests a user (or IP address) can make within a specific time window.
+#### Implementing Rate Limiting
+To protect our Laravel application from abuse and excessive requests, we implement rate limiting. Rate limiting helps prevent brute-force attacks, reduces server load, and improves overall API reliability.  
+
+#### Installing Redis
+
+Redis (Remote Dictionary Server) is a very fast, in-memory data store. It is commonly used for caching, sessions, queues, and rate limiting. Because Redis stores data in memory, it is significantly faster than traditional databases, making it ideal for tracking API requests in real time.  
+Redis is used with rate limiting plugin to persist rate-limit data. This allows rate limits to remain consistent even if the server restarts or runs across multiple instances.  
+We install it as following
+
+- Ubuntu / Debian:
+
+```
+sudo apt update
+sudo apt install redis-server
+sudo systemctl enable redis-server
+sudo systemctl start redis-server
+```
+
+- macOS (Homebrew):
+
+```
+brew install redis
+brew services start redis
+```
+
+- Windows Redis is not officially supported on Windows, but we can use **Redis for Windows** provided by the community [Redis for Windows](https://github.com/tporadowski/redis/releases).
+
+After that we install the redis package
+
+```
+composer require predis/predis
+```
+#### Editing The .env File
+Next, we update the .env file to tell Laravel to use Redis for cache and throttling:
+```
+CACHE_STORE=redis
+REDIS_HOST=127.0.0.1
+REDIS_PASSWORD=null
+REDIS_PORT=6379
+```
+#### Configure Rate Limiters
+We define our limits in `app/Providers/AppServiceProvider.php` using the `RateLimiter` facade.
+```php
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
+
+public function boot(): void{
+    RateLimiter::for('api', function (Request $request) {
+        return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
+    });
+}
+```
+- **perMinute(60):** The max number of requests allowed.
+- **by():** Identifies the user by their ID or IP address.
+
+#### Applying and Overriding Rate Limits
+To apply the limit, we add the `throttle` middleware to the middleware list in our routes in `routes/api.php`.
+```php
+<?php
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\authcontroller;
+use App\Http\Controllers\taskcontroller;
+use App\Http\Controllers\usercontroller;
+
+Route::post('/auth/register', [authcontroller::class, 'register']);
+Route::post('/auth/login', [authcontroller::class, 'login']);
+
+Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
+    Route::get('/tasks', [taskcontroller::class, 'index']);
+    Route::post('/tasks', [taskcontroller::class, 'store']);
+    Route::put('/tasks/{task_id}', [taskcontroller::class, 'update']);
+    Route::delete('/tasks/{task_id}', [taskcontroller::class, 'destroy']);
+
+    Route::get('/user', [usercontroller::class, 'index']);
+    Route::patch('/user', [usercontroller::class, 'update_password']);
+    Route::put('/user', [usercontroller::class, 'update_profile']);
+    Route::get('/auth/logout', [authcontroller::class, 'logout']);
+});
+```
+We can define rate limit on the routes middleware level by using `throttle:max_attempts,decay_minutes`. in the  middleware function
+
+```php
+Route::middleware('throttle:1000,1')->group(function () {
+    Route::post('/auth/register', [authcontroller::class, 'register']);
+    Route::post('/auth/login', [authcontroller::class, 'login']);
+});
+
+```
+To skip rate limiting for a specific route, we simply don't  apply the `throttle` middleware to that route definition.
+
+### Query Parameters and Pagination in Laravel
+
+#### Query Parameters
+Sometimes we need to apply filters to our data for example, allowing a user to search for a task by name. In Laravel, we can access these parameters using the `request()` helper or the `Request` object.    
+To filter tasks by a query parameter named `name` (e.g., `/tasks?name=clean`), you would use:
+```php
+$name = request()->query('name');
+$tasks = Task::where('name', 'like', "%$name%")->get();
+```
+#### Pagination
+Pagination divides data into manageable chunks instead of returning thousands of records at once. This significantly improves performance and reduces memory usage.   
+In Laravel, pagination is incredibly simple because the Eloquent builder handles the math and the SQL "limit/offset" logic for you.
+#### Basic Pagination (Length Aware)
+We can use `paginate(10)` to return 10 items from the database. and devide our data into chunks of pages of 10 elements.
+```php
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection; // add this to import
+
+// Inside your Controller
+public function index(Request $request){
+        if (! $request->user()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        return TaskResource::collection($request->user()->tasks()->paginate(10));
+    }
+```
+
+**The JSON response will be structured as follows:**
+```json
+{
+    "data": [
+        { "id": 1, "name": "Task 1" },
+	    { "id": 2, "name": "Task 2" }
+    ],
+    "links": {
+        "first": "http://127.0.0.1:8000/api/tasks?page=1",
+        "last": "http://127.0.0.1:8000/api/tasks?page=2",
+        "prev": null,
+        "next": "http://127.0.0.1:8000/api/tasks?page=2"
+    },
+    "meta": {
+        "current_page": 1,
+        "from": 1,
+        "last_page": 2,
+        "links": [
+            {
+            "url": null,"label": "&laquo; Previous","page": null,"active": false
+            },
+            {
+            "url": "http://127.0.0.1:8000/api/tasks?page=1","label": "1","page": 1,"active": true
+            },
+            {
+            "url": "http://127.0.0.1:8000/api/tasks?page=2","label": "2","page": 2,"active": false
+            },
+            {
+            "url": "http://127.0.0.1:8000/api/tasks?page=2","label": "Next &raquo;","page": 2,"active": false
+            }
+        ],
+        "path": "http://127.0.0.1:8000/api/tasks",
+        "per_page": 10,
+        "to": 10,
+        "total": 12
+    }
+}
+```
+We can retrive the next chunk of data using
+```js
+await fetch(`${API_BASE}/tasks?page=2`, {
+        headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`  },
+    });
+```
+#### Simple Pagination
+If we don't need to show the exact page numbers , we can use `simplePaginate`. This is more efficient because it doesn't execute a "count" query to find out the total number of pages.
+```php
+return TaskResource::collection($request->user()->tasks()->simplePaginate(10));
+```
+The JSON will only contain `next_page_url` and `prev_page_url`, but not the `total` or `last_page` count.
+#### Customizing Pagination
+We can customize the parameter name (default is `page`) or the per-page limit dynamically:
+```php
+// Changing the parameter name to 'p' instead of 'page'
+return TaskResource::collection($request->user()->tasks()->paginate(10, ['*'], 'p'));
+
+// Allow the client to define the limit via ?limit=50
+$limit = request()->query('limit', 10); // 10 is the default
+$tasks = TaskResource::collection($request->user()->tasks()->paginate($limit));
+```
+

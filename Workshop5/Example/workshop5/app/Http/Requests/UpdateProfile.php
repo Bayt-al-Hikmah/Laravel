@@ -7,13 +7,13 @@ use Illuminate\Foundation\Http\FormRequest;
 class UpdateProfile extends FormRequest{
 
     public function authorize(): bool{
-        return $request->user();
+        return $this->user() !== null;
     }
 
     public function rules(): array{
         return [
-            'username' => 'required|string|unique:users',
-            'email' => 'required|email|unique:users',
+            'name' => 'required|string',
+            'email' => 'required|email',
             'avatar' => 'nullable|image'
         ];
     }

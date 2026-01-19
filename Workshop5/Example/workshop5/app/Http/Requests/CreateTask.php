@@ -5,7 +5,7 @@ use Illuminate\Foundation\Http\FormRequest;
 class CreateTask extends FormRequest{
 
     public function authorize(): bool{
-        return $request->user();
+        return $this->user() !== null;
     }
 
     public function rules(): array{
